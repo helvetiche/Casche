@@ -1,11 +1,9 @@
 "use client";
 
-import GoogleSignInButton from "./GoogleSignInButton";
-
 const AuthCard = () => {
   return (
     <div className="max-w-md w-full mx-auto">
-      <div className="bg-white rounded-none brutal-shadow brutal-border p-8">
+      <div className="bg-amber-50 rounded-none brutal-shadow brutal-border p-8">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center w-16 h-16 bg-amber-50 mb-4 brutal-border mx-auto">
@@ -23,21 +21,11 @@ const AuthCard = () => {
           </p>
         </div>
 
-        {/* Sign In Section */}
-        <div className="space-y-6">
-          <div className="text-center">
-            <p className="text-xs text-emerald-900 mb-4 font-mono uppercase tracking-wide">
-              Get started by signing in
-            </p>
-            <GoogleSignInButton />
-          </div>
-
-          {/* Footer */}
-          <div className="text-center">
-            <p className="text-xs text-emerald-900 font-mono tracking-wide">
-              Made with love by Nasche Del Ponso
-            </p>
-          </div>
+        {/* Footer */}
+        <div className="text-center">
+          <p className="text-xs text-emerald-900 font-mono tracking-wide">
+            Made with love by Nasche Del Ponso
+          </p>
         </div>
       </div>
     </div>

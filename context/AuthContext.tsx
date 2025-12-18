@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   getIdTokenResult,
+  getIdToken,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 
@@ -22,6 +23,7 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  getCurrentUserIdToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -110,12 +112,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const getCurrentUserIdToken = async (): Promise<string | null> => {
+    if (!user) return null;
+    try {
+      return await getIdToken(user);
+    } catch (error) {
+      console.error("Error getting ID token:", error);
+      return null;
+    }
+  };
+
   const value = {
     user,
     customClaims,
     loading,
     signInWithGoogle,
     logout,
+    getCurrentUserIdToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

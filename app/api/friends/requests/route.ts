@@ -1,0 +1,319 @@
+import { NextRequest, NextResponse } from "next/server";
+import admin from "@/lib/firebase-admin";
+import { FriendRequest } from "@/lib/types/friends";
+import {
+  verifyFirebaseToken,
+  verifyUserAuthorization,
+} from "@/lib/auth-middleware";
+
+const db = admin.firestore();
+
+// GET - Fetch friend requests for a user
+export async function GET(request: NextRequest) {
+  try {
+    // Verify Firebase authentication
+    const { user, error: tokenError } = await verifyFirebaseToken(request);
+    if (tokenError) return tokenError;
+
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    const type = searchParams.get("type"); // 'sent' | 'received'
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify user authorization - users can only view their own requests
+    const authorizationError = verifyUserAuthorization(user!.uid, userId);
+    if (authorizationError) return authorizationError;
+
+    if (type === "sent" || type === "received") {
+      // Get filtered requests
+      let query: any = db.collection("friendRequests");
+
+      if (type === "sent") {
+        query = query.where("fromUserId", "==", userId);
+      } else if (type === "received") {
+        query = query.where("toUserId", "==", userId);
+      }
+
+      const snapshot = await query.get();
+      const requestsWithProfiles = await Promise.all(
+        snapshot.docs.map(async (doc: any) => {
+          const data = doc.data() as any;
+          const request = {
+            id: doc.id,
+            fromUserId: data.fromUserId,
+            toUserId: data.toUserId,
+            status: data.status,
+            createdAt: data.createdAt
+              ? new Date(data.createdAt.seconds * 1000)
+              : new Date(),
+            updatedAt: data.updatedAt
+              ? new Date(data.updatedAt.seconds * 1000)
+              : new Date(),
+          };
+
+          // Fetch user profiles
+          const [fromUser, toUser] = await Promise.all([
+            admin.auth().getUser(data.fromUserId),
+            admin.auth().getUser(data.toUserId),
+          ]);
+
+          return {
+            ...request,
+            fromUserProfile: {
+              uid: fromUser.uid,
+              email: fromUser.email || "",
+              displayName: fromUser.displayName || null,
+              photoURL: fromUser.photoURL || null,
+              createdAt: fromUser.metadata.creationTime
+                ? new Date(fromUser.metadata.creationTime)
+                : new Date(),
+            },
+            toUserProfile: {
+              uid: toUser.uid,
+              email: toUser.email || "",
+              displayName: toUser.displayName || null,
+              photoURL: toUser.photoURL || null,
+              createdAt: toUser.metadata.creationTime
+                ? new Date(toUser.metadata.creationTime)
+                : new Date(),
+            },
+          };
+        })
+      );
+
+      return NextResponse.json({ requests: requestsWithProfiles });
+    } else {
+      // Get both sent and received
+      const [sent, received] = await Promise.all([
+        db.collection("friendRequests").where("fromUserId", "==", userId).get(),
+        db.collection("friendRequests").where("toUserId", "==", userId).get(),
+      ]);
+
+      const allRequests = [...sent.docs, ...received.docs];
+      const requestsWithProfiles = await Promise.all(
+        allRequests.map(async (doc) => {
+          const data = doc.data() as any;
+          const request = {
+            id: doc.id,
+            fromUserId: data.fromUserId,
+            toUserId: data.toUserId,
+            status: data.status,
+            createdAt: data.createdAt
+              ? new Date(data.createdAt.seconds * 1000)
+              : new Date(),
+            updatedAt: data.updatedAt
+              ? new Date(data.updatedAt.seconds * 1000)
+              : new Date(),
+          };
+
+          // Fetch user profiles
+          const [fromUser, toUser] = await Promise.all([
+            admin.auth().getUser(data.fromUserId),
+            admin.auth().getUser(data.toUserId),
+          ]);
+
+          return {
+            ...request,
+            fromUserProfile: {
+              uid: fromUser.uid,
+              email: fromUser.email || "",
+              displayName: fromUser.displayName || null,
+              photoURL: fromUser.photoURL || null,
+              createdAt: fromUser.metadata.creationTime
+                ? new Date(fromUser.metadata.creationTime)
+                : new Date(),
+            },
+            toUserProfile: {
+              uid: toUser.uid,
+              email: toUser.email || "",
+              displayName: toUser.displayName || null,
+              photoURL: toUser.photoURL || null,
+              createdAt: toUser.metadata.creationTime
+                ? new Date(toUser.metadata.creationTime)
+                : new Date(),
+            },
+          };
+        })
+      );
+
+      return NextResponse.json({ requests: requestsWithProfiles });
+    }
+  } catch (error) {
+    console.error("Error fetching friend requests:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch friend requests" },
+      { status: 500 }
+    );
+  }
+}
+
+// POST - Send or respond to friend request
+export async function POST(request: NextRequest) {
+  try {
+    // Verify Firebase authentication
+    const { user, error: authError } = await verifyFirebaseToken(request);
+    if (authError) return authError;
+
+    const body = await request.json();
+    const { action, fromUserId, toUserId, requestId } = body;
+
+    if (!action || !fromUserId || !toUserId) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Verify user authorization based on action type
+    if (action === "send") {
+      // User can only send requests from themselves
+      const sendAuthError = verifyUserAuthorization(user!.uid, fromUserId);
+      if (sendAuthError) return sendAuthError;
+    } else if (action === "accept" || action === "decline") {
+      // User can only respond to requests sent to them
+      const respondAuthError = verifyUserAuthorization(user!.uid, toUserId);
+      if (respondAuthError) return respondAuthError;
+    } else if (action === "cancel") {
+      // User can only cancel requests they sent
+      const cancelAuthError = verifyUserAuthorization(user!.uid, fromUserId);
+      if (cancelAuthError) return cancelAuthError;
+    }
+
+    const batch = db.batch();
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    if (action === "send") {
+      // Check if request already exists
+      const existingRequest = await db
+        .collection("friendRequests")
+        .where("fromUserId", "==", fromUserId)
+        .where("toUserId", "==", toUserId)
+        .where("status", "==", "pending")
+        .get();
+
+      if (!existingRequest.empty) {
+        return NextResponse.json(
+          { error: "Friend request already exists" },
+          { status: 400 }
+        );
+      }
+
+      // Check if they're already friends
+      const existingFriendship = await db
+        .collection("friends")
+        .where("userId", "in", [fromUserId, toUserId])
+        .where("friendId", "in", [fromUserId, toUserId])
+        .where("status", "==", "accepted")
+        .get();
+
+      if (!existingFriendship.empty) {
+        return NextResponse.json(
+          { error: "Users are already friends" },
+          { status: 400 }
+        );
+      }
+
+      const requestRef = db.collection("friendRequests").doc();
+      batch.set(requestRef, {
+        fromUserId,
+        toUserId,
+        status: "pending",
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else if (action === "accept" || action === "decline") {
+      if (!requestId) {
+        return NextResponse.json(
+          { error: "Request ID is required for accept/decline actions" },
+          { status: 400 }
+        );
+      }
+
+      const requestRef = db.collection("friendRequests").doc(requestId);
+      const requestDoc = await requestRef.get();
+
+      if (!requestDoc.exists) {
+        return NextResponse.json(
+          { error: "Friend request not found" },
+          { status: 404 }
+        );
+      }
+
+      const requestData = requestDoc.data() as FriendRequest;
+
+      if (requestData.toUserId !== fromUserId) {
+        return NextResponse.json(
+          { error: "Unauthorized to respond to this request" },
+          { status: 403 }
+        );
+      }
+
+      if (action === "accept") {
+        // Create friendship
+        const friendshipRef = db.collection("friends").doc();
+        batch.set(friendshipRef, {
+          userId: requestData.fromUserId,
+          friendId: requestData.toUserId,
+          status: "accepted",
+          createdAt: now,
+        });
+
+        // Update request status
+        batch.update(requestRef, {
+          status: "accepted",
+          updatedAt: now,
+        });
+      } else {
+        // Update request status to declined
+        batch.update(requestRef, {
+          status: "declined",
+          updatedAt: now,
+        });
+      }
+    } else if (action === "cancel") {
+      if (!requestId) {
+        return NextResponse.json(
+          { error: "Request ID is required for cancel action" },
+          { status: 400 }
+        );
+      }
+
+      const requestRef = db.collection("friendRequests").doc(requestId);
+      const requestDoc = await requestRef.get();
+
+      if (!requestDoc.exists) {
+        return NextResponse.json(
+          { error: "Friend request not found" },
+          { status: 404 }
+        );
+      }
+
+      const requestData = requestDoc.data() as FriendRequest;
+
+      if (requestData.fromUserId !== fromUserId) {
+        return NextResponse.json(
+          { error: "Unauthorized to cancel this request" },
+          { status: 403 }
+        );
+      }
+
+      batch.delete(requestRef);
+    }
+
+    await batch.commit();
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error processing friend request:", error);
+    return NextResponse.json(
+      { error: "Failed to process friend request" },
+      { status: 500 }
+    );
+  }
+}

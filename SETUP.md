@@ -86,7 +86,7 @@ The landing page follows DESIGN.MD retro design principles:
 - **Colors**: Retro palette (#F8F7F4 background, #000000 text, #4285F4 button)
 - **Button Style**: Primary action button with:
   - Blue background (#4285F4)
-  - White text
+  - amber-50 text
   - 3px black border
   - Drop shadow for 3D effect
   - Hover states with translation

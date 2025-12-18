@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.10",
+    "clsx": "^2.1.1",
     "firebase": "^12.6.0",
     "firebase-admin": "^13.6.0",
     "google-auth-library": "^10.5.0",
@@ -18,9 +19,11 @@
     "phosphor-react": "^1.4.1",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "tailwind-merge": "^3.4.0",
     "zod": "^4.2.0"
   },
   "devDependencies": {
+    "@ljharb/tsconfig": "^0.3.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

@@ -65,7 +65,7 @@ const InstallPrompt = () => {
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
-      <div className="bg-white brutal-shadow brutal-border p-4 max-w-xs">
+      <div className="bg-amber-50 brutal-shadow brutal-border p-4 max-w-xs">
         {/* Header with close button */}
         <div className="flex items-center justify-between mb-3">
           <div className="w-3 h-3 bg-emerald-900"></div>
@@ -90,7 +90,7 @@ const InstallPrompt = () => {
 
           <button
             onClick={handleInstallClick}
-            className="w-full bg-emerald-900 text-white border-2 border-emerald-900 px-4 py-2 font-mono text-xs uppercase tracking-wider hover:bg-emerald-800 transition-colors"
+            className="w-full bg-emerald-900 text-amber-100 border-2 border-emerald-900 px-4 py-2 font-mono text-xs uppercase tracking-wider hover:bg-emerald-800 transition-colors"
           >
             Install Now
           </button>
