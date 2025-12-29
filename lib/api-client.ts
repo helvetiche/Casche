@@ -44,18 +44,30 @@ export const apiRequest = async (
 ): Promise<Response> => {
   const csrfToken = await getCSRFToken();
 
-  const headers: HeadersInit = {
-    ...options.headers,
-  };
+  // Convert options.headers to a plain object if it's a Headers instance
+  const existingHeaders: Record<string, string> = {};
+  if (options.headers) {
+    if (options.headers instanceof Headers) {
+      options.headers.forEach((value, key) => {
+        existingHeaders[key] = value;
+      });
+    } else if (Array.isArray(options.headers)) {
+      options.headers.forEach(([key, value]) => {
+        existingHeaders[key] = value;
+      });
+    } else {
+      Object.assign(existingHeaders, options.headers);
+    }
+  }
 
   // Add CSRF token to headers for POST, PUT, DELETE requests
   if (csrfToken && ["POST", "PUT", "DELETE", "PATCH"].includes(options.method || "GET")) {
-    headers["X-CSRF-Token"] = csrfToken;
+    existingHeaders["X-CSRF-Token"] = csrfToken;
   }
 
   return fetch(url, {
     ...options,
-    headers,
+    headers: existingHeaders,
     credentials: "include", // Include cookies
   });
 };
