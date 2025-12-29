@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Coins, Bank, Users } from "phosphor-react";
+import { useState, useEffect, useRef } from "react";
+import { Coins, Users, Target, UserCircle, SignOut } from "phosphor-react";
 
 const TypewriterText = ({
   text,
@@ -40,19 +40,55 @@ const TypewriterText = ({
 interface BottomNavigationProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
+  onLogout: () => void;
 }
 
 const BottomNavigation = ({
   activeSection,
   onSectionChange,
+  onLogout,
 }: BottomNavigationProps) => {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        menuButtonRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        !menuButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+
+    if (showDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showDropdown]);
+
+  const handleToggleDropdown = () => {
+    setShowDropdown(!showDropdown);
+  };
+
+  const handleLogout = () => {
+    setShowDropdown(false);
+    onLogout();
+  };
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 bg-amber-100 border-t border-amber-200"
       role="navigation"
       aria-label="Main navigation"
     >
-      <div className="flex items-center justify-around px-4 py-2 border-t-1 border-emerald-900">
+      <div className="flex items-center justify-around px-4 py-2 border-t-1 border-emerald-900 relative">
         {/* Home */}
         <div
           className={`flex flex-row items-center p-2 cursor-pointer transition-colors ${
@@ -81,31 +117,31 @@ const BottomNavigation = ({
           />
         </div>
 
-        {/* My Savings */}
+        {/* Goals */}
         <div
           className={`flex flex-row items-center p-2 cursor-pointer transition-colors ${
-            activeSection === "savings"
+            activeSection === "goals"
               ? "bg-emerald-900 text-amber-100 rounded-full"
               : "text-gray-600 rounded-none hover:text-gray-800"
           }`}
-          onClick={() => onSectionChange("savings")}
-          aria-label="My Savings"
+          onClick={() => onSectionChange("goals")}
+          aria-label="Goals"
           tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              onSectionChange("savings");
+              onSectionChange("goals");
             }
           }}
         >
-          <Bank
+          <Target
             size={20}
-            weight={activeSection === "savings" ? "fill" : "regular"}
-            className={activeSection === "savings" ? "text-amber-100" : ""}
+            weight={activeSection === "goals" ? "fill" : "regular"}
+            className={activeSection === "goals" ? "text-amber-100" : ""}
           />
           <TypewriterText
-            text="My Savings"
-            isVisible={activeSection === "savings"}
+            text="Goals"
+            isVisible={activeSection === "goals"}
           />
         </div>
 
@@ -135,6 +171,61 @@ const BottomNavigation = ({
             text="Friends"
             isVisible={activeSection === "friends"}
           />
+        </div>
+
+        {/* User Menu */}
+        <div className="relative" ref={menuButtonRef}>
+          <div
+            className={`flex flex-row items-center p-2 cursor-pointer transition-colors ${
+              showDropdown
+                ? "bg-emerald-900 text-amber-100 rounded-full"
+                : "text-gray-600 rounded-none hover:text-gray-800"
+            }`}
+            onClick={handleToggleDropdown}
+            aria-label="User Menu"
+            aria-expanded={showDropdown}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleToggleDropdown();
+              }
+              if (e.key === "Escape") {
+                setShowDropdown(false);
+              }
+            }}
+          >
+            <UserCircle
+              size={20}
+              weight={showDropdown ? "fill" : "regular"}
+              className={showDropdown ? "text-amber-100" : ""}
+            />
+          </div>
+
+          {/* Dropdown Menu */}
+          {showDropdown && (
+            <div
+              ref={dropdownRef}
+              className="absolute bottom-full right-0 mb-2 bg-amber-50 border border-emerald-900 rounded-lg shadow-lg min-w-[160px] overflow-hidden"
+              role="menu"
+            >
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-red-600 hover:text-white transition-colors"
+                role="menuitem"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleLogout();
+                  }
+                }}
+              >
+                <SignOut size={18} weight="regular" />
+                <span className="text-sm font-medium">Logout</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </nav>

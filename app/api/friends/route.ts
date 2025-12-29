@@ -4,15 +4,24 @@ import { Friend, FriendWithProfile, UserProfile } from "@/lib/types/friends";
 import {
   verifyFirebaseToken,
   verifyUserAuthorization,
+  addRateLimitHeaders,
 } from "@/lib/auth-middleware";
+import { withRateLimit } from "@/lib/rate-limiter";
+import { auditLog } from "@/lib/audit-logger";
 
 const db = admin.firestore();
 
 export async function GET(request: NextRequest) {
+  let user: { uid: string } | null = null;
   try {
+    // Apply rate limiting
+    const rateLimitResponse = await withRateLimit(request);
+    if (rateLimitResponse) return rateLimitResponse;
+
     // Verify Firebase authentication
-    const { user, error: tokenError } = await verifyFirebaseToken(request);
-    if (tokenError) return tokenError;
+    const authResult = await verifyFirebaseToken(request);
+    if (authResult.error) return authResult.error;
+    user = authResult.user;
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
@@ -25,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify user authorization - users can only view their own friends
-    const authorizationError = verifyUserAuthorization(user!.uid, userId);
+    const authorizationError = await verifyUserAuthorization(user!.uid, userId, request);
     if (authorizationError) return authorizationError;
 
     // Get all friendships where the user is either userId or friendId
@@ -90,9 +99,10 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    return NextResponse.json({ friends: friendsWithProfiles });
+    const response = NextResponse.json({ friends: friendsWithProfiles });
+    return await addRateLimitHeaders(response, request, user!.uid);
   } catch (error) {
-    console.error("Error fetching friends:", error);
+    await auditLog.error.server(request, user?.uid || undefined, "/api/friends", "Failed to fetch friends");
     return NextResponse.json(
       { error: "Failed to fetch friends" },
       { status: 500 }

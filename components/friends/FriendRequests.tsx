@@ -114,14 +114,30 @@ const FriendRequests = () => {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        {[...Array(2)].map((_, i) => (
-          <div key={i} className="animate-pulse">
-            <div className="flex items-center space-x-4 p-4 bg-amber-50 rounded-lg border border-gray-200">
-              <div className="w-12 h-12 bg-gray-300 rounded-full"></div>
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-gray-300 rounded w-3/4"></div>
-                <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+        {[...Array(4)].map((_, i) => (
+          <div
+            key={i}
+            className="bg-amber-100 border border-emerald-900 rounded-lg p-3 sm:p-4 lg:p-6"
+          >
+            <div className="animate-pulse space-y-4">
+              {/* Avatar + Name + Email + Date */}
+              <div className="flex items-start space-x-3 sm:space-x-4">
+                {/* Avatar */}
+                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gray-300 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
+
+                {/* Name, Email, Date */}
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="h-4 sm:h-5 bg-gray-300 rounded w-3/4"></div>
+                  <div className="h-3 sm:h-4 bg-gray-300 rounded w-full"></div>
+                  <div className="h-3 bg-gray-300 rounded w-24"></div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-8 sm:h-9 bg-gray-300 rounded-full"></div>
+                <div className="flex-1 h-8 sm:h-9 bg-gray-300 rounded-full"></div>
               </div>
             </div>
           </div>
@@ -137,11 +153,15 @@ const FriendRequests = () => {
   if (pendingRequests.length === 0) {
     return (
       <div className="text-center py-12">
-        <X size={48} className="mx-auto text-black mb-4" weight="thin" />
-        <h3 className="text-md font-medium text-gray-900 mb-2">
-          Nobody has sent you any friend requests yet.
+        <Clock
+          size={48}
+          className="mx-auto text-gray-400 mb-3 sm:mb-4 sm:w-16 sm:h-16"
+          weight="thin"
+        />
+        <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-1.5 sm:mb-2">
+          No friend requests
         </h3>
-        <p className="text-gray-600 text-xs">
+        <p className="text-xs sm:text-sm text-gray-600 px-2">
           You're all caught up! No friend requests to review. Go add some
           friends!
         </p>
@@ -150,60 +170,58 @@ const FriendRequests = () => {
   }
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      <div className="flex items-center space-x-2">
-        <div className="w-3 h-3 bg-emerald-900 rounded-none"></div>
-        <div className="w-3 h-3 bg-emerald-800 rounded-none"></div>
-        <div className="w-3 h-3 bg-emerald-700 rounded-none"></div>
-      </div>
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-          Friend Requests ({pendingRequests.length})
-        </h2>
-      </div>
-
-      <div className="grid gap-3 sm:gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
         {pendingRequests.map((request) => (
           <div
             key={request.id}
-            className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-amber-50 rounded-lg border border-gray-200 space-y-3 sm:space-y-0"
+            className="bg-amber-100 border border-emerald-900 rounded-lg p-3 sm:p-4 lg:p-6 hover:shadow-lg transition-shadow"
           >
-            <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
-              {request.fromUserProfile?.photoURL ? (
-                <img
-                  src={request.fromUserProfile.photoURL}
-                  alt={`${
-                    request.fromUserProfile.displayName || "User"
-                  }'s avatar`}
-                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover flex-shrink-0"
-                />
-              ) : (
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <UserPlus
-                    size={20}
-                    className="text-emerald-900"
-                    weight="bold"
-                  />
-                </div>
-              )}
+            {/* Header */}
 
-              <div className="min-w-0 flex-1">
-                <h3 className="font-medium text-gray-900 truncate">
-                  {request.fromUserProfile?.displayName || "Anonymous User"}
-                </h3>
-                <p className="text-xs text-amber-500">
-                  {" "}
-                  {request.createdAt
-                    ? formatReadableDate(request.createdAt)
-                    : "Unknown date"}
-                </p>
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                {request.fromUserProfile?.photoURL ? (
+                  <img
+                    src={request.fromUserProfile.photoURL}
+                    alt={`${
+                      request.fromUserProfile.displayName || "User"
+                    }'s avatar`}
+                    className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full border-2 border-emerald-900 object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-emerald-900 rounded-full flex items-center justify-center flex-shrink-0">
+                    <UserPlus
+                      size={24}
+                      className="text-amber-100 sm:w-7 sm:h-7"
+                      weight="fill"
+                    />
+                  </div>
+                )}
+
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 truncate">
+                    {request.fromUserProfile?.displayName || "Anonymous User"}
+                  </h3>
+                  {request.fromUserProfile?.email && (
+                    <p className="text-xs sm:text-sm text-gray-600 truncate mt-0.5 sm:mt-1">
+                      {request.fromUserProfile.email}
+                    </p>
+                  )}
+                  {request.createdAt && (
+                    <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-1.5">
+                      {formatReadableDate(request.createdAt)}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="flex sm:justify-end space-x-2 flex-shrink-0">
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
               {processingRequests.has(request.id) ? (
-                <div className="flex items-center space-x-2 text-amber-500">
-                  <div className="animate-spin rounded-none h-4 w-4 border-2 border-amber-500 border-t-transparent"></div>
+                <div className="flex items-center justify-center space-x-2 w-full py-2 bg-amber-100 text-emerald-900 border border-emerald-900 rounded-full">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-emerald-900 border-t-transparent"></div>
                   <span className="text-xs sm:text-sm font-medium">
                     Processing...
                   </span>
@@ -212,7 +230,7 @@ const FriendRequests = () => {
                 <>
                   <button
                     onClick={() => handleRespondToRequest(request.id, "accept")}
-                    className="flex items-center space-x-1.5 sm:space-x-2 px-4 sm:px-5 py-2.5 bg-emerald-900 text-amber-100 rounded-full hover:bg-emerald-800 active:bg-emerald-950 transition-all duration-200 shadow-sm hover:shadow-md font-medium text-xs sm:text-xs"
+                    className="flex-1 flex items-center justify-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 bg-emerald-900 text-amber-100 rounded-full hover:bg-emerald-800 transition-colors font-medium text-xs sm:text-sm"
                     aria-label={`Accept friend request from ${
                       request.fromUserProfile?.displayName ||
                       request.fromUserProfile?.email ||
@@ -234,7 +252,7 @@ const FriendRequests = () => {
                     onClick={() =>
                       handleRespondToRequest(request.id, "decline")
                     }
-                    className="flex items-center space-x-1.5 sm:space-x-2 px-4 sm:px-5 py-2.5 bg-amber-50 text-gray-700 rounded-full border border-gray-300 hover:bg-amber-50 hover:border-gray-400 active:bg-gray-100 transition-all duration-200 shadow-sm hover:shadow-md font-medium text-xs sm:text-xs"
+                    className="flex-1 flex items-center justify-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 bg-white text-emerald-900 border border-emerald-900 rounded-full hover:bg-amber-50 transition-colors font-medium text-xs sm:text-sm"
                     aria-label={`Decline friend request from ${
                       request.fromUserProfile?.displayName ||
                       request.fromUserProfile?.email ||

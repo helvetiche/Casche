@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 
@@ -6,11 +6,8 @@ import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "Casche - Save your Casche",
-  description: "Track your expenses and savings anywhere",
+  description: "Track your expenses anywhere",
   manifest: "/manifest.json",
-  themeColor: "#064e3b",
-  viewport:
-    "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -25,6 +22,14 @@ export const metadata: Metadata = {
     "apple-mobile-web-app-title": "Casche",
     "mobile-web-app-capable": "yes",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#064e3b",
 };
 
 export default function RootLayout({

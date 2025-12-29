@@ -19,22 +19,14 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-amber-50">
-        <div className="animate-spin rounded-none h-8 w-8 border-4 border-emerald-900 border-t-transparent"></div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-amber-50">
-        <div className="animate-spin rounded-none h-8 w-8 border-4 border-emerald-900 border-t-transparent"></div>
+      <div className="min-h-screen flex items-center justify-center bg-amber-100">
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-emerald-900 border-t-transparent"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-amber-50 px-4 py-8 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-amber-100 px-4 py-8 relative overflow-hidden">
       {/* Neo Brutalism Grid Background */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Vertical Grid Lines */}

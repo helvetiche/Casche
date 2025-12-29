@@ -29,6 +29,44 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Environment Variables
+
+Create a `.env.local` file in the root directory with the following variables:
+
+### Required Variables
+
+**Firebase Admin SDK (Server-side only):**
+- `FIREBASE_PROJECT_ID` - Your Firebase project ID
+- `FIREBASE_CLIENT_EMAIL` - Service account email from Firebase Console
+- `FIREBASE_PRIVATE_KEY` - Service account private key (keep this secret!)
+
+**Firebase Client Configuration (Public - safe to expose):**
+- `NEXT_PUBLIC_FIREBASE_API_KEY` - Firebase API key
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` - Firebase auth domain
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID` - Firebase project ID
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` - Firebase storage bucket
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` - Firebase messaging sender ID
+- `NEXT_PUBLIC_FIREBASE_APP_ID` - Firebase app ID
+- `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` - Firebase Analytics measurement ID
+
+### Optional Variables
+
+- `NODE_ENV` - Set to `production` for production deployments (default: `development`)
+- `ENABLE_AUDIT_LOGS` - Set to `true` to enable audit logs in development mode (default: `false`)
+
+**Upstash Redis (For Distributed Rate Limiting):**
+- `UPSTASH_REDIS_REST_URL` - Upstash Redis REST API URL (optional, falls back to in-memory rate limiting if not set)
+- `UPSTASH_REDIS_REST_TOKEN` - Upstash Redis REST API token (optional, falls back to in-memory rate limiting if not set)
+
+**Note:** Rate limiting will automatically use Redis if both `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are configured. Otherwise, it falls back to in-memory rate limiting (suitable for single-instance deployments).
+
+### Security Notes
+
+- Never commit `.env.local` or `.env*` files to version control
+- The `.gitignore` file already excludes `.env*` files
+- Server-side variables (without `NEXT_PUBLIC_` prefix) are never exposed to the client
+- Public variables (with `NEXT_PUBLIC_` prefix) are safe to expose but should still be kept secure
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

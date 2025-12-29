@@ -1,5 +1,7 @@
 "use client";
 
+import GoogleSignInButton from "./GoogleSignInButton";
+
 const AuthCard = () => {
   return (
     <div className="max-w-md w-full mx-auto">
@@ -17,8 +19,13 @@ const AuthCard = () => {
             Casche
           </h1>
           <p className="text-emerald-900 font-mono text-xs tracking-wide text-center">
-            [ Track your expenses and savings with ease ]
+            [ Track your expenses with ease ]
           </p>
+        </div>
+
+        {/* Sign In Button */}
+        <div className="mb-8">
+          <GoogleSignInButton />
         </div>
 
         {/* Footer */}

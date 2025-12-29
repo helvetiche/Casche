@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { UserProfile } from "@/lib/types/friends";
-import { UserPlus, MagnifyingGlass, X, Check, Clock } from "phosphor-react";
+import { UserPlus, MagnifyingGlass, Check, Clock } from "phosphor-react";
 
 const AddFriend = () => {
   const { user, getCurrentUserIdToken } = useAuth();
@@ -165,24 +165,20 @@ const AddFriend = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div>
-        <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 bg-emerald-900 rounded-none"></div>
-          <div className="w-3 h-3 bg-emerald-800 rounded-none"></div>
-          <div className="w-3 h-3 bg-emerald-700 rounded-none"></div>
-        </div>
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
-          Start connecting with your friends!
-        </h2>
-
-        {/* Search Input */}
+      {/* Search Bar */}
+      <div className="bg-amber-100 border border-emerald-900 rounded-full p-1 sm:p-4">
         <div className="relative">
+          <MagnifyingGlass
+            size={20}
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+            weight="regular"
+          />
           <input
             type="text"
             placeholder="Search by email or name"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full text-xs border-1 border-amber-900 rounded-lg p-2 "
+            className="w-full pl-10 pr-4 py-1 sm:py-2 bg-white border border-emerald-900 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-base"
             aria-label="Search for users to add as friends"
           />
         </div>
@@ -190,103 +186,140 @@ const AddFriend = () => {
 
       {/* Search Results */}
       {searchQuery.length >= 2 && (
-        <div className="space-y-3 sm:space-y-4">
-          {loading && (
-            <div className="text-center py-4">
-              <div className="animate-spin rounded-none h-5 w-5 sm:h-6 sm:w-6 border-2 border-emerald-900 border-t-transparent mx-auto"></div>
-            </div>
-          )}
+        <div className="space-y-4 sm:space-y-6">
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-amber-100 border border-emerald-900 rounded-lg p-3 sm:p-4 lg:p-6"
+                >
+                  <div className="animate-pulse">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                        {/* Avatar */}
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gray-300 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
 
-          {!loading && searchResults.length === 0 && (
-            <div className="text-center py-6 sm:py-8">
-              <UserPlus
-                size={28}
-                className="mx-auto text-gray-400 mb-2"
+                        {/* Name and Email */}
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="h-4 sm:h-5 bg-gray-300 rounded w-3/4"></div>
+                          <div className="h-3 sm:h-4 bg-gray-300 rounded w-full"></div>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <div className="h-8 sm:h-9 bg-gray-300 rounded-full w-24 sm:w-32 flex-shrink-0 ml-2"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : searchResults.length === 0 ? (
+            <div className="text-center py-12">
+              <MagnifyingGlass
+                size={48}
+                className="mx-auto text-gray-400 mb-3 sm:mb-4 sm:w-16 sm:h-16"
                 weight="thin"
               />
-              <p className="text-sm sm:text-base text-gray-600">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-1.5 sm:mb-2">
+                No users found
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-600 px-2">
                 No users found matching "{searchQuery}"
               </p>
             </div>
-          )}
-
-          {!loading && searchResults.length > 0 && (
-            <div className="space-y-2 sm:space-y-3">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-700 tracking-wide">
-                We found {searchResults.length} results!
-              </h3>
-
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
               {searchResults.map((userProfile) => (
                 <div
                   key={userProfile.uid}
-                  className="flex items-center justify-between p-3 sm:p-4 bg-amber-50 rounded-lg border border-gray-200"
+                  className="bg-amber-100 border border-emerald-900 rounded-lg p-3 sm:p-4 lg:p-6 hover:shadow-lg transition-shadow"
                 >
-                  <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
-                    {userProfile.photoURL ? (
-                      <img
-                        src={userProfile.photoURL}
-                        alt={`${userProfile.displayName || "User"}'s avatar`}
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <UserPlus
-                          size={16}
-                          className="text-emerald-900"
-                          weight="bold"
+                  {/* Header */}
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                      {userProfile.photoURL ? (
+                        <img
+                          src={userProfile.photoURL}
+                          alt={`${userProfile.displayName || "User"}'s avatar`}
+                          className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full border-2 border-emerald-900 object-cover flex-shrink-0"
                         />
-                      </div>
-                    )}
+                      ) : (
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-emerald-900 rounded-full flex items-center justify-center flex-shrink-0">
+                          <UserPlus
+                            size={24}
+                            className="text-amber-100 sm:w-7 sm:h-7"
+                            weight="fill"
+                          />
+                        </div>
+                      )}
 
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-medium text-gray-900 truncate text-sm sm:text-base">
-                        {userProfile.displayName || "Anonymous User"}
-                      </h4>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 truncate">
+                          {userProfile.displayName || "Anonymous User"}
+                        </h4>
+                        {userProfile.email && (
+                          <p className="text-xs sm:text-sm text-gray-600 truncate mt-0.5 sm:mt-1">
+                            {userProfile.email}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center space-x-1 sm:space-x-2 ml-2 flex-shrink-0">
-                    {pendingRequests.has(userProfile.uid) ? (
-                      <div className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-600 text-amber-100 rounded-full">
-                        <Clock size={14} weight="bold" />
-                        <span className="text-xs sm:text-sm font-medium">
-                          Pending
-                        </span>
-                      </div>
-                    ) : sentRequests.has(userProfile.uid) ? (
-                      <div className="flex items-center space-x-1 sm:space-x-2 text-emerald-900">
-                        <Check size={14} weight="bold" />
-                        <span className="text-xs sm:text-sm font-medium">
-                          Sent
-                        </span>
-                      </div>
-                    ) : sendingRequests.has(userProfile.uid) ? (
-                      <div className="flex items-center space-x-1 sm:space-x-2 text-amber-500">
-                        <div className="animate-spin rounded-none h-3 w-3 sm:h-4 sm:w-4 border-2 border-amber-500 border-t-transparent"></div>
-                        <span className="text-xs sm:text-sm font-medium">
-                          Sending...
-                        </span>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleSendFriendRequest(userProfile.uid)}
-                        className="flex items-center space-x-1.5 sm:space-x-2 px-4 sm:px-5 py-2.5 bg-emerald-900 text-amber-100 rounded-xl hover:bg-emerald-800 active:bg-emerald-950 transition-all duration-200 shadow-sm hover:shadow-md font-medium text-xs sm:text-sm"
-                        aria-label={`Send friend request to ${
-                          userProfile.displayName || userProfile.email
-                        }`}
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            handleSendFriendRequest(userProfile.uid);
+                    <div className="flex items-center ml-2 flex-shrink-0">
+                      {pendingRequests.has(userProfile.uid) ? (
+                        <div className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 bg-amber-100 text-emerald-900 border border-emerald-900 rounded-full">
+                          <Clock
+                            size={14}
+                            weight="bold"
+                            className="sm:w-4 sm:h-4"
+                          />
+                          <span className="text-xs sm:text-sm font-medium">
+                            Pending
+                          </span>
+                        </div>
+                      ) : sentRequests.has(userProfile.uid) ? (
+                        <div className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 bg-emerald-900 text-amber-100 rounded-full">
+                          <Check
+                            size={14}
+                            weight="bold"
+                            className="sm:w-4 sm:h-4"
+                          />
+                          <span className="text-xs sm:text-sm font-medium">
+                            Sent
+                          </span>
+                        </div>
+                      ) : sendingRequests.has(userProfile.uid) ? (
+                        <div className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 bg-amber-100 text-emerald-900 border border-emerald-900 rounded-full">
+                          <div className="animate-spin rounded-none h-3 w-3 sm:h-4 sm:w-4 border-2 border-emerald-900 border-t-transparent"></div>
+                          <span className="text-xs sm:text-sm font-medium">
+                            Sending...
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            handleSendFriendRequest(userProfile.uid)
                           }
-                        }}
-                      >
-                        <UserPlus size={16} weight="bold" />
-                        <span className="hidden sm:inline">Add Friend</span>
-                        <span className="sm:hidden">Add</span>
-                      </button>
-                    )}
+                          className="flex items-center space-x-1.5 sm:space-x-2 px-4 sm:px-5 py-2 bg-emerald-900 text-amber-100 rounded-full hover:bg-emerald-800 transition-colors font-medium text-xs sm:text-sm"
+                          aria-label={`Send friend request to ${
+                            userProfile.displayName || userProfile.email
+                          }`}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleSendFriendRequest(userProfile.uid);
+                            }
+                          }}
+                        >
+                          <UserPlus size={16} weight="bold" />
+                          <span className="hidden sm:inline">Add Friend</span>
+                          <span className="sm:hidden">Add</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -298,11 +331,16 @@ const AddFriend = () => {
       {/* Default State */}
       {searchQuery.length < 2 && (
         <div className="text-center py-12">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">
-            Connect with your friends!
+          <UserPlus
+            size={48}
+            className="mx-auto text-gray-400 mb-3 sm:mb-4 sm:w-16 sm:h-16"
+            weight="thin"
+          />
+          <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-1.5 sm:mb-2">
+            Start connecting with your friends!
           </h3>
-          <p className="text-gray-600 text-xs">
-            Add friends to share your progress with!
+          <p className="text-xs sm:text-sm text-gray-600 px-2">
+            Search by email or name to add friends and share your progress with!
           </p>
         </div>
       )}

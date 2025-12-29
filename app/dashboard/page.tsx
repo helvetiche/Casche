@@ -2,19 +2,20 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { UserProfile } from "@/components/auth";
-import InstallPrompt from "@/components/InstallPrompt";
 import BottomNavigation from "@/components/Navigation";
 import FriendsPage from "@/components/friends/FriendsPage";
-import {
-  SavingsGoalCard,
-  CreateSavingsGoal,
-  ShareSavingsGoal,
-  SavingsGoalRequests,
-  SharedSavingsGoals,
-  SavingsGoalDetailsModal,
-  SavingsHistoryModal,
-  SavingsDeductModal,
-} from "@/components/savings";
+import GoalsPage from "@/components/goals/GoalsPage";
+import WalletCard from "@/components/dashboard/WalletCard";
+import QuickGoalsTable from "@/components/dashboard/QuickGoalsTable";
+import Analytics from "@/components/dashboard/Analytics";
+import FriendsSection from "@/components/dashboard/FriendsSection";
+import TransactionModal from "@/components/goals/TransactionModal";
+import GoalDetailsModal from "@/components/goals/GoalDetailsModal";
+import ConfirmationModal from "@/components/goals/ConfirmationModal";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
+import { Coins, Plus, Target } from "phosphor-react";
+import { Goal, GoalTransaction } from "@/lib/types/goals";
 
 // TypewriterText component for animated labels
 const TypewriterText = ({
@@ -52,212 +53,231 @@ const TypewriterText = ({
     </span>
   );
 };
-import { SavingsGoal } from "@/lib/types/savings";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
-import { Coins, Plus, Bank, Target, Clock, Users } from "phosphor-react";
 
 export default function Dashboard() {
-  const { user, loading, getCurrentUserIdToken } = useAuth();
+  const { user, loading, getCurrentUserIdToken, logout } = useAuth();
   const router = useRouter();
   const [activeSection, setActiveSection] = useState("summary");
-
-  // Savings state
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
-  const [savingsLoading, setSavingsLoading] = useState(false);
-  const [showCreateSavingsModal, setShowCreateSavingsModal] = useState(false);
-  const [showShareSavingsModal, setShowShareSavingsModal] = useState(false);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goalsLoading, setGoalsLoading] = useState(false);
+  const [totalSavings, setTotalSavings] = useState(0);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [showDeductModal, setShowDeductModal] = useState(false);
-  const [selectedSavingsGoal, setSelectedSavingsGoal] =
-    useState<SavingsGoal | null>(null);
-  const [activeSavingsTab, setActiveSavingsTab] = useState<
-    "my-goals" | "requests" | "shared"
-  >("my-goals");
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
+  const [transactionType, setTransactionType] = useState<
+    "deposit" | "withdrawal"
+  >("deposit");
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Fetch goals to calculate total savings
+  const fetchGoals = useCallback(async () => {
+    if (!user?.uid) return;
+
+    try {
+      setGoalsLoading(true);
+      const idToken = await getCurrentUserIdToken();
+      if (!idToken) return;
+
+      const response = await fetch(`/api/goals?userId=${user.uid}`, {
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const allGoals = data.goals || [];
+        setGoals(allGoals);
+
+        // Calculate total savings across all goals
+        const total = allGoals.reduce(
+          (sum: number, goal: Goal) => sum + (goal.currentAmount || 0),
+          0
+        );
+        setTotalSavings(total);
+      }
+    } catch (error) {
+      console.error("Error fetching goals:", error);
+    } finally {
+      setGoalsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
+
+  // Fetch goals when user is available
+  useEffect(() => {
+    if (user?.uid && activeSection === "summary") {
+      fetchGoals();
+    }
+  }, [user?.uid, activeSection, fetchGoals]);
+
+  // Handle deposit action
+  const handleDeposit = (goalId: string) => {
+    const goal = goals.find((g) => g.id === goalId);
+    if (goal) {
+      setSelectedGoal(goal);
+      setTransactionType("deposit");
+      setShowTransactionModal(true);
+    }
+  };
+
+  // Handle withdraw action
+  const handleWithdraw = (goalId: string) => {
+    const goal = goals.find((g) => g.id === goalId);
+    if (goal) {
+      setSelectedGoal(goal);
+      setTransactionType("withdrawal");
+      setShowTransactionModal(true);
+    }
+  };
+
+  // Handle view action
+  const handleViewGoal = (goal: Goal) => {
+    setSelectedGoal(goal);
+    setShowDetailsModal(true);
+  };
+
+  // Handle transaction success
+  const handleTransactionSuccess = (
+    transaction: GoalTransaction,
+    updatedGoal: Goal
+  ) => {
+    setGoals((prev) =>
+      prev.map((g) => (g.id === updatedGoal.id ? updatedGoal : g))
+    );
+
+    // Recalculate total savings
+    const updatedGoals = goals.map((g) =>
+      g.id === updatedGoal.id ? updatedGoal : g
+    );
+    const total = updatedGoals.reduce(
+      (sum: number, goal: Goal) => sum + (goal.currentAmount || 0),
+      0
+    );
+    setTotalSavings(total);
+
+    // Refresh goals to get latest data
+    fetchGoals();
+  };
+
+  // Handle deposit with amount (for GoalDetailsModal)
+  const handleDepositWithAmount = async (goalId: string, amount: number) => {
+    try {
+      const idToken = await getCurrentUserIdToken();
+      if (!idToken) {
+        alert("Authentication required");
+        return;
+      }
+
+      const response = await fetch(`/api/goals/${goalId}/transactions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          type: "deposit",
+          amount,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create transaction");
+      }
+
+      const data = await response.json();
+      handleTransactionSuccess(data.transaction, data.goal);
+    } catch (error) {
+      console.error("Error creating deposit:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to create deposit"
+      );
+    }
+  };
+
+  // Handle withdraw with amount (for GoalDetailsModal)
+  const handleWithdrawWithAmount = async (goalId: string, amount: number) => {
+    try {
+      const idToken = await getCurrentUserIdToken();
+      if (!idToken) {
+        alert("Authentication required");
+        return;
+      }
+
+      const response = await fetch(`/api/goals/${goalId}/transactions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          type: "withdrawal",
+          amount,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create transaction");
+      }
+
+      const data = await response.json();
+      handleTransactionSuccess(data.transaction, data.goal);
+    } catch (error) {
+      console.error("Error creating withdrawal:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to create withdrawal"
+      );
+    }
+  };
+
+  // Handle delete goal
+  const handleDeleteGoal = async (goalId: string) => {
+    try {
+      const idToken = await getCurrentUserIdToken();
+      if (!idToken) return;
+
+      const response = await fetch(`/api/goals?goalId=${goalId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      if (response.ok) {
+        setGoals((prev) => prev.filter((g) => g.id !== goalId));
+        fetchGoals();
+        setShowDetailsModal(false);
+        setSelectedGoal(null);
+      }
+    } catch (error) {
+      console.error("Error deleting goal:", error);
+      alert("Failed to delete goal");
+    }
+  };
 
   // Handle navigation to dedicated pages
   const handleSectionChange = (section: string) => {
     setActiveSection(section);
-    if (section === "savings" && user?.uid) {
-      fetchSavingsGoals();
-    }
   };
 
-  // Savings functions
-  const fetchSavingsGoals = useCallback(async () => {
+  // Handle logout request
+  const handleLogoutRequest = () => {
+    setShowLogoutConfirmation(true);
+  };
+
+  // Handle logout confirmation
+  const handleLogoutConfirm = async () => {
     try {
-      setSavingsLoading(true);
-      const idToken = await getCurrentUserIdToken();
-      if (!idToken) return;
-
-      const response = await fetch(`/api/savings?userId=${user!.uid}`, {
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch savings goals");
-      }
-
-      const data = await response.json();
-      setSavingsGoals(data.goals);
-    } catch (err) {
-      console.error("Error fetching savings goals:", err);
-    } finally {
-      setSavingsLoading(false);
-    }
-  }, [user?.uid, getCurrentUserIdToken]);
-
-  const handleCreateSavingsGoal = (newGoal: SavingsGoal) => {
-    setSavingsGoals((prev) => [newGoal, ...prev]);
-  };
-
-  const handleEditSavingsGoal = (goal: SavingsGoal) => {
-    const newAmount = prompt(
-      `Update current amount for "${goal.title}" (current: ₱${goal.currentAmount}):`
-    );
-    if (newAmount && !isNaN(Number(newAmount))) {
-      handleUpdateSavingsProgress(goal.id, Number(newAmount));
-    }
-  };
-
-  const handleUpdateSavingsProgress = async (
-    goalId: string,
-    newAmount: number
-  ) => {
-    if (!user?.uid) return;
-
-    try {
-      const idToken = await getCurrentUserIdToken();
-      if (!idToken) throw new Error("Authentication required");
-
-      const response = await fetch("/api/savings", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          goalId,
-          userId: user.uid,
-          currentAmount: newAmount,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update goal");
-      }
-
-      const data = await response.json();
-      setSavingsGoals((prev) =>
-        prev.map((goal) => (goal.id === goalId ? data.goal : goal))
-      );
+      setIsLoggingOut(true);
+      await logout();
+      router.push("/");
     } catch (error) {
-      console.error("Error updating goal:", error);
-      alert(error instanceof Error ? error.message : "Failed to update goal");
-    }
-  };
-
-  const handleDeleteSavingsGoal = async (goalId: string) => {
-    if (
-      !user?.uid ||
-      !confirm("Are you sure you want to delete this savings goal?")
-    )
-      return;
-
-    try {
-      const idToken = await getCurrentUserIdToken();
-      if (!idToken) throw new Error("Authentication required");
-
-      const response = await fetch(
-        `/api/savings?goalId=${goalId}&userId=${user.uid}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete goal");
-      }
-
-      setSavingsGoals((prev) => prev.filter((goal) => goal.id !== goalId));
-    } catch (error) {
-      console.error("Error deleting goal:", error);
-      alert(error instanceof Error ? error.message : "Failed to delete goal");
-    }
-  };
-
-  const handleShareSavingsGoal = (goal: SavingsGoal) => {
-    setSelectedSavingsGoal(goal);
-    setShowShareSavingsModal(true);
-  };
-
-  const handleViewSavingsGoal = (goal: SavingsGoal) => {
-    setSelectedSavingsGoal(goal);
-    setShowDetailsModal(true);
-  };
-
-  const handleViewHistory = (goal: SavingsGoal) => {
-    setSelectedSavingsGoal(goal);
-    setShowHistoryModal(true);
-  };
-
-  const handleDeductAmount = async (goalId: string, amount: number) => {
-    if (amount === 0) {
-      // This means we want to open the modal, not actually deduct
-      setSelectedSavingsGoal(savingsGoals.find((g) => g.id === goalId) || null);
-      setShowDeductModal(true);
-      return;
-    }
-
-    // Actually deduct the amount
-    const goal = savingsGoals.find((g) => g.id === goalId);
-    if (!goal) return;
-
-    const newAmount = Math.max(0, goal.currentAmount - amount);
-
-    if (!user?.uid) return;
-
-    try {
-      const idToken = await getCurrentUserIdToken();
-      if (!idToken) throw new Error("Authentication required");
-
-      const response = await fetch("/api/savings", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          goalId,
-          userId: user.uid,
-          currentAmount: newAmount,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to deduct amount");
-      }
-
-      const data = await response.json();
-      setSavingsGoals((prev) =>
-        prev.map((goal) => (goal.id === goalId ? data.goal : goal))
-      );
-
-      alert(
-        `Successfully deducted ₱${amount.toLocaleString()} from "${goal.title}"`
-      );
-    } catch (error) {
-      console.error("Error deducting amount:", error);
-      alert(error instanceof Error ? error.message : "Failed to deduct amount");
+      console.error("Failed to logout:", error);
+      setIsLoggingOut(false);
+      setShowLogoutConfirmation(false);
     }
   };
 
@@ -271,7 +291,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-amber-50">
-        <div className="animate-spin rounded-none h-8 w-8 border-4 border-emerald-900 border-t-transparent"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-emerald-900 border-t-transparent"></div>
       </div>
     );
   }
@@ -284,170 +304,160 @@ export default function Dashboard() {
     switch (activeSection) {
       case "summary":
         return (
-          <div className="max-w-4xl mx-auto px-2 sm:px-0">
+          <div className="max-w-4xl mx-auto">
             <div className="mb-6 sm:mb-8">
-              <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-2">
-                Dashboard
-              </h1>
+              <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-emerald-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Coins
+                    size={20}
+                    className="text-amber-100 sm:w-6 sm:h-6"
+                    weight="fill"
+                  />
+                </div>
+                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
+                  Dashboard
+                </h1>
+              </div>
               <p className="text-sm sm:text-base text-gray-600">
                 Welcome to your personal finance dashboard.
               </p>
             </div>
-            <UserProfile />
-          </div>
-        );
-      case "savings":
-        return (
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Header */}
+
+            {/* User Profile */}
             <div className="mb-6 sm:mb-8">
-              {/* Tabs */}
-              <div className="mb-6">
-                <nav className="flex items-center justify-around px-4 py-2 bg-amber-100 rounded-full border border-emerald-900">
-                  <div className="flex items-center justify-around w-full">
-                    {[
-                      {
-                        id: "my-goals" as const,
-                        label: "My Goals",
-                        icon: Target,
-                        count: savingsGoals.length,
-                      },
-                      {
-                        id: "requests" as const,
-                        label: "Requests",
-                        icon: Clock,
-                      },
-                      {
-                        id: "shared" as const,
-                        label: "Friends' Goals",
-                        icon: Users,
-                      },
-                    ].map((tab) => {
-                      const IconComponent = tab.icon;
-                      return (
-                        <div
-                          key={tab.id}
-                          className={`flex flex-row items-center p-2 cursor-pointer transition-colors rounded-full ${
-                            activeSavingsTab === tab.id
-                              ? "bg-emerald-900 text-amber-100"
-                              : "text-gray-600 hover:text-gray-800"
-                          }`}
-                          onClick={() => setActiveSavingsTab(tab.id)}
-                          aria-label={tab.label}
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setActiveSavingsTab(tab.id);
-                            }
-                          }}
-                        >
-                          <IconComponent
-                            size={16}
-                            weight={
-                              activeSavingsTab === tab.id ? "fill" : "regular"
-                            }
-                            className={
-                              activeSavingsTab === tab.id
-                                ? "text-amber-100"
-                                : ""
-                            }
-                          />
-                          <TypewriterText
-                            text={`${tab.label}${
-                              tab.count !== undefined ? ` (${tab.count})` : ""
-                            }`}
-                            isVisible={activeSavingsTab === tab.id}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </nav>
-              </div>
+              <UserProfile />
             </div>
 
-            {/* Tab Content */}
-            <div className="space-y-6">
-              {activeSavingsTab === "my-goals" && (
-                <>
-                  {savingsLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                      {[...Array(4)].map((_, i) => (
-                        <div
-                          key={i}
-                          className="bg-amber-50 rounded-lg border border-gray-200 p-4 sm:p-6"
-                        >
-                          <div className="animate-pulse space-y-3">
-                            <div className="h-4 bg-gray-300 rounded w-3/4"></div>
-                            <div className="h-8 bg-gray-300 rounded w-1/2"></div>
+            {/* Wallet Card */}
+            <div className="mb-6 sm:mb-8">
+              {goalsLoading ? (
+                <div className="w-full max-w-md mx-auto bg-amber-100 border border-emerald-900 rounded-2xl p-6 sm:p-8">
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-4 bg-gray-300 rounded w-1/3"></div>
+                    <div className="h-8 bg-gray-300 rounded w-2/3"></div>
+                    <div className="h-4 bg-gray-300 rounded w-1/2 mt-6"></div>
+                    <div className="h-10 bg-gray-300 rounded w-full"></div>
+                  </div>
+                </div>
+              ) : (
+                <WalletCard
+                  cardNumber={user?.uid?.toUpperCase() || ""}
+                  totalSavings={totalSavings}
+                  userName={
+                    user?.displayName || user?.email?.split("@")[0] || ""
+                  }
+                />
+              )}
+            </div>
+
+            {/* Quick Goals Table */}
+            <div className="mb-6 sm:mb-8">
+              <div className="mb-4">
+                <div className="flex items-center space-x-2 sm:space-x-3 mb-1 sm:mb-2">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Target
+                      size={20}
+                      className="text-amber-100 sm:w-5 sm:h-5"
+                      weight="fill"
+                    />
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+                    My Savings Goals
+                  </h2>
+                </div>
+              </div>
+              {goalsLoading ? (
+                <div className="bg-amber-100 border border-emerald-900 rounded-lg p-6">
+                  <div className="animate-pulse space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gray-300 rounded-lg"></div>
+                          <div className="space-y-2">
+                            <div className="h-4 bg-gray-300 rounded w-32"></div>
+                            <div className="h-3 bg-gray-300 rounded w-24"></div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : savingsGoals.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Target
-                        size={48}
-                        className="mx-auto text-black mb-4"
-                        weight="thin"
-                      />
-                      <h3 className="text-lg font-medium text-black mb-2">
-                        No savings goals yet
-                      </h3>
-                      <p className="text-black mb-6">
-                        Create your first savings goal to start tracking your
-                        progress!
-                      </p>
-                      <button
-                        onClick={() => setShowCreateSavingsModal(true)}
-                        className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-900 text-amber-100 text-sm rounded-full hover:bg-emerald-700 transition-colors font-medium"
-                      >
-                        <Plus size={20} weight="bold" />
-                        <span>Create Your First Goal</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                      {savingsGoals.map((goal) => (
-                        <SavingsGoalCard
-                          key={goal.id}
-                          goal={goal}
-                          user={user}
-                          onEdit={handleEditSavingsGoal}
-                          onDelete={handleDeleteSavingsGoal}
-                          onShare={handleShareSavingsGoal}
-                          onView={handleViewSavingsGoal}
-                          onViewHistory={handleViewHistory}
-                          onDeductAmount={handleDeductAmount}
-                          onUpdateProgress={handleUpdateSavingsProgress}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </>
+                        <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <QuickGoalsTable
+                  goals={goals}
+                  onDeposit={handleDeposit}
+                  onWithdraw={handleWithdraw}
+                  onView={handleViewGoal}
+                />
               )}
+            </div>
 
-              {activeSavingsTab === "requests" && <SavingsGoalRequests />}
+            {/* Analytics Section */}
+            <div className="mb-6 sm:mb-8">
+              <Analytics goals={goals} />
+            </div>
 
-              {activeSavingsTab === "shared" && <SharedSavingsGoals />}
+            {/* Friends Section */}
+            <div className="mb-6 sm:mb-8">
+              <FriendsSection />
             </div>
           </div>
         );
       case "friends":
         return <FriendsPage />;
+      case "goals":
+        return <GoalsPage />;
       default:
         return (
-          <div className="max-w-4xl mx-auto px-2 sm:px-0">
+          <div className="max-w-4xl mx-auto">
             <div className="mb-6 sm:mb-8">
-              <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-2">
-                Dashboard
-              </h1>
+              <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-emerald-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Coins
+                    size={20}
+                    className="text-amber-100 sm:w-6 sm:h-6"
+                    weight="fill"
+                  />
+                </div>
+                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
+                  My Summary
+                </h1>
+              </div>
               <p className="text-sm sm:text-base text-gray-600">
-                Welcome to your personal finance dashboard.
+                Welcome to your personal finance summary.
               </p>
             </div>
-            <UserProfile />
+
+            {/* User Profile */}
+            <div className="mb-6 sm:mb-8">
+              <UserProfile />
+            </div>
+
+            {/* Wallet Card */}
+            <div className="mb-6 sm:mb-8">
+              {goalsLoading ? (
+                <div className="w-full max-w-md mx-auto bg-amber-100 border border-emerald-900 rounded-2xl p-6 sm:p-8">
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-4 bg-gray-300 rounded w-1/3"></div>
+                    <div className="h-8 bg-gray-300 rounded w-2/3"></div>
+                    <div className="h-4 bg-gray-300 rounded w-1/2 mt-6"></div>
+                    <div className="h-10 bg-gray-300 rounded w-full"></div>
+                  </div>
+                </div>
+              ) : (
+                <WalletCard
+                  cardNumber={user?.uid?.toUpperCase() || ""}
+                  totalSavings={totalSavings}
+                  userName={
+                    user?.displayName || user?.email?.split("@")[0] || ""
+                  }
+                />
+              )}
+            </div>
           </div>
         );
     }
@@ -459,103 +469,54 @@ export default function Dashboard() {
       <BottomNavigation
         activeSection={activeSection}
         onSectionChange={handleSectionChange}
+        onLogout={handleLogoutRequest}
       />
 
-      {/* Floating Action Button */}
-      {activeSection === "summary" && (
-        <div className="fixed bottom-20 sm:bottom-24 right-4 sm:right-6 z-40">
-          <button
-            className="relative w-12 h-12 sm:w-14 sm:h-14 bg-emerald-900 rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-800 transition-colors"
-            aria-label="Add new transaction"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                // Handle add transaction action
-              }
-            }}
-          >
-            <Coins
-              size={20}
-              weight="duotone"
-              className="text-amber-100 sm:w-6 sm:h-6"
-            />
-
-            {/* Plus badge */}
-            <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-amber-50 rounded-full flex items-center justify-center shadow-md">
-              <Plus
-                size={12}
-                weight="bold"
-                className="text-emerald-900 sm:w-3.5 sm:h-3.5"
-              />
-            </div>
-          </button>
-        </div>
-      )}
-
-      {/* Savings Floating Action Button */}
-      {activeSection === "savings" && (
-        <div className="fixed bottom-20 sm:bottom-24 right-4 sm:right-6 z-40">
-          <button
-            onClick={() => setShowCreateSavingsModal(true)}
-            className="relative w-12 h-12 sm:w-14 sm:h-14 bg-emerald-900 rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-800 transition-colors"
-            aria-label="Create new savings goal"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setShowCreateSavingsModal(true);
-              }
-            }}
-          >
-            <Bank
-              size={20}
-              weight="duotone"
-              className="text-amber-100 sm:w-6 sm:h-6"
-            />
-
-            {/* Plus badge */}
-            <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-amber-50 rounded-full flex items-center justify-center shadow-md">
-              <Plus
-                size={12}
-                weight="bold"
-                className="text-emerald-600 sm:w-3.5 sm:h-3.5"
-              />
-            </div>
-          </button>
-        </div>
-      )}
-
-      {/* Savings Modals */}
-      <CreateSavingsGoal
-        isOpen={showCreateSavingsModal}
-        onClose={() => setShowCreateSavingsModal(false)}
-        onCreate={handleCreateSavingsGoal}
+      {/* Transaction Modal */}
+      <TransactionModal
+        isOpen={showTransactionModal}
+        onClose={() => {
+          setShowTransactionModal(false);
+          setSelectedGoal(null);
+        }}
+        goal={selectedGoal}
+        type={transactionType}
+        onSuccess={handleTransactionSuccess}
       />
 
-      <ShareSavingsGoal
-        isOpen={showShareSavingsModal}
-        onClose={() => setShowShareSavingsModal(false)}
-        goal={selectedSavingsGoal}
-      />
-
-      <SavingsGoalDetailsModal
+      {/* Goal Details Modal */}
+      <GoalDetailsModal
         isOpen={showDetailsModal}
-        onClose={() => setShowDetailsModal(false)}
-        goal={selectedSavingsGoal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedGoal(null);
+        }}
+        goal={selectedGoal}
+        onUpdate={(updatedGoal) => {
+          setGoals((prev) =>
+            prev.map((g) => (g.id === updatedGoal.id ? updatedGoal : g))
+          );
+          fetchGoals();
+        }}
+        onDelete={handleDeleteGoal}
+        onDeposit={handleDepositWithAmount}
+        onWithdraw={handleWithdrawWithAmount}
       />
 
-      <SavingsHistoryModal
-        isOpen={showHistoryModal}
-        onClose={() => setShowHistoryModal(false)}
-        goal={selectedSavingsGoal}
-      />
-
-      <SavingsDeductModal
-        isOpen={showDeductModal}
-        onClose={() => setShowDeductModal(false)}
-        goal={selectedSavingsGoal}
-        onDeduct={handleDeductAmount}
+      {/* Logout Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showLogoutConfirmation}
+        onClose={() => {
+          setShowLogoutConfirmation(false);
+          setIsLoggingOut(false);
+        }}
+        onConfirm={handleLogoutConfirm}
+        title="Confirm Logout"
+        message="Are you sure you want to logout? You will need to sign in again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+        confirmButtonColor="danger"
+        loading={isLoggingOut}
       />
     </div>
   );

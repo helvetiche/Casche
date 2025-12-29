@@ -5,15 +5,25 @@ import {
   verifyFirebaseToken,
   verifyUserAuthorization,
 } from "@/lib/auth-middleware";
+import { validateRequestSize } from "@/lib/request-size-middleware";
+import { withRateLimit } from "@/lib/rate-limiter";
+import { auditLog } from "@/lib/audit-logger";
+import { validateCSRFToken } from "@/lib/csrf-middleware";
 
 const db = admin.firestore();
 
 // GET - Fetch friend requests for a user
 export async function GET(request: NextRequest) {
+  let user: { uid: string; email?: string; displayName?: string } | null = null;
   try {
+    // Apply rate limiting
+    const rateLimitResponse = await withRateLimit(request);
+    if (rateLimitResponse) return rateLimitResponse;
+
     // Verify Firebase authentication
-    const { user, error: tokenError } = await verifyFirebaseToken(request);
-    if (tokenError) return tokenError;
+    const authResult = await verifyFirebaseToken(request);
+    if (authResult.error) return authResult.error;
+    user = authResult.user;
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
@@ -27,17 +37,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify user authorization - users can only view their own requests
-    const authorizationError = verifyUserAuthorization(user!.uid, userId);
+    const authorizationError = await verifyUserAuthorization(
+      user!.uid,
+      userId,
+      request
+    );
     if (authorizationError) return authorizationError;
 
     if (type === "sent" || type === "received") {
-      // Get filtered requests
+      // Get filtered requests - only pending requests
       let query: any = db.collection("friendRequests");
 
       if (type === "sent") {
-        query = query.where("fromUserId", "==", userId);
+        query = query
+          .where("fromUserId", "==", userId)
+          .where("status", "==", "pending");
       } else if (type === "received") {
-        query = query.where("toUserId", "==", userId);
+        query = query
+          .where("toUserId", "==", userId)
+          .where("status", "==", "pending");
       }
 
       const snapshot = await query.get();
@@ -145,7 +163,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ requests: requestsWithProfiles });
     }
   } catch (error) {
-    console.error("Error fetching friend requests:", error);
+    await auditLog.error.server(
+      request,
+      user?.uid || undefined,
+      "/api/friends/requests",
+      "Failed to fetch friend requests"
+    );
     return NextResponse.json(
       { error: "Failed to fetch friend requests" },
       { status: 500 }
@@ -155,10 +178,20 @@ export async function GET(request: NextRequest) {
 
 // POST - Send or respond to friend request
 export async function POST(request: NextRequest) {
+  let user: { uid: string; email?: string; displayName?: string } | null = null;
   try {
     // Verify Firebase authentication
-    const { user, error: authError } = await verifyFirebaseToken(request);
-    if (authError) return authError;
+    const authResult = await verifyFirebaseToken(request);
+    if (authResult.error) return authResult.error;
+    user = authResult.user;
+
+    // Validate CSRF token
+    const csrfCheck = validateCSRFToken(request);
+    if (csrfCheck) return csrfCheck;
+
+    // Validate request body size
+    const sizeCheck = validateRequestSize(request);
+    if (sizeCheck) return sizeCheck;
 
     const body = await request.json();
     const { action, fromUserId, toUserId, requestId } = body;
@@ -173,15 +206,27 @@ export async function POST(request: NextRequest) {
     // Verify user authorization based on action type
     if (action === "send") {
       // User can only send requests from themselves
-      const sendAuthError = verifyUserAuthorization(user!.uid, fromUserId);
+      const sendAuthError = await verifyUserAuthorization(
+        user!.uid,
+        fromUserId,
+        request
+      );
       if (sendAuthError) return sendAuthError;
     } else if (action === "accept" || action === "decline") {
       // User can only respond to requests sent to them
-      const respondAuthError = verifyUserAuthorization(user!.uid, toUserId);
+      const respondAuthError = await verifyUserAuthorization(
+        user!.uid,
+        toUserId,
+        request
+      );
       if (respondAuthError) return respondAuthError;
     } else if (action === "cancel") {
       // User can only cancel requests they sent
-      const cancelAuthError = verifyUserAuthorization(user!.uid, fromUserId);
+      const cancelAuthError = await verifyUserAuthorization(
+        user!.uid,
+        fromUserId,
+        request
+      );
       if (cancelAuthError) return cancelAuthError;
     }
 
@@ -227,6 +272,14 @@ export async function POST(request: NextRequest) {
         createdAt: now,
         updatedAt: now,
       });
+
+      // Log friend request
+      await auditLog.authorization.failed(
+        request,
+        user!.uid,
+        undefined,
+        `Send friend request to ${toUserId}`
+      );
     } else if (action === "accept" || action === "decline") {
       if (!requestId) {
         return NextResponse.json(
@@ -247,7 +300,8 @@ export async function POST(request: NextRequest) {
 
       const requestData = requestDoc.data() as FriendRequest;
 
-      if (requestData.toUserId !== fromUserId) {
+      // SECURITY FIX: Verify user is the recipient (toUserId), not fromUserId
+      if (requestData.toUserId !== user!.uid) {
         return NextResponse.json(
           { error: "Unauthorized to respond to this request" },
           { status: 403 }
@@ -310,7 +364,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error processing friend request:", error);
+    await auditLog.error.server(
+      request,
+      user?.uid,
+      "/api/friends/requests",
+      "Failed to process friend request"
+    );
     return NextResponse.json(
       { error: "Failed to process friend request" },
       { status: 500 }

@@ -26,7 +26,7 @@ const UserProfile = () => {
             className="w-16 h-16 rounded-full border-3 border-emerald-900 shadow-lg object-cover"
           />
         ) : (
-          <div className="w-16 h-16 bg-amber-50 border-3 border-emerald-900 rounded-full flex items-center justify-center shadow-lg">
+          <div className="w-16 h-16 bg-amber-100 border-3 border-emerald-900 rounded-full flex items-center justify-center shadow-lg">
             <UserIcon size={24} className="text-emerald-900" weight="bold" />
           </div>
         )}

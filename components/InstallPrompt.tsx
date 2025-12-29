@@ -65,7 +65,7 @@ const InstallPrompt = () => {
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
-      <div className="bg-amber-50 brutal-shadow brutal-border p-4 max-w-xs">
+      <div className="bg-amber-100 brutal-shadow brutal-border p-4 max-w-xs">
         {/* Header with close button */}
         <div className="flex items-center justify-between mb-3">
           <div className="w-3 h-3 bg-emerald-900"></div>
