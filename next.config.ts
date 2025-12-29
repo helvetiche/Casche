@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' data: https: blob:",
               // Connect sources - allow Firebase and Google API connections
-              "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com wss://*.firebaseio.com https://www.google-analytics.com https://*.google-analytics.com",
+              "connect-src 'self' https://*.googleapis.com https://apis.google.com https://*.firebaseio.com https://*.firebase.com wss://*.firebaseio.com https://www.google-analytics.com https://*.google-analytics.com",
               // Frame sources - allow Firebase and Google Auth iframes
               "frame-src 'self' https://*.google.com https://accounts.google.com https://*.firebaseapp.com https://*.firebase.com",
               "object-src 'none'",
