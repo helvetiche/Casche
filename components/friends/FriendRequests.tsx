@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { FriendRequestWithProfile } from "@/lib/types/friends";
+import { getCSRFToken } from "@/lib/api-client";
 import { formatReadableDate } from "@/lib/utils";
 import { UserPlus, Check, X, Clock } from "phosphor-react";
 
@@ -73,12 +74,20 @@ const FriendRequests = () => {
         throw new Error("Authentication required");
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        alert("Failed to get security token. Please refresh the page.");
+        return;
+      }
+
       const response = await fetch("/api/friends/requests", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({
           action,
           fromUserId: user.uid,

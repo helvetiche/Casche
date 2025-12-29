@@ -397,7 +397,6 @@ const GoalDetailsModal = ({
                               </div>
                             )}
                             <div className="text-xs text-gray-400 flex items-center space-x-1">
-                              <Clock size={12} weight="regular" />
                               <span>{formatDate(transaction.createdAt)}</span>
                             </div>
                           </div>

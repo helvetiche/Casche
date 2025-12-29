@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Goal, GoalTransaction, QuickSubmitButton } from "@/lib/types/goals";
+import { getCSRFToken } from "@/lib/api-client";
 import { X, Plus, Minus } from "phosphor-react";
 import ModalPortal from "./ModalPortal";
 import AlertModal from "./AlertModal";
@@ -80,12 +81,26 @@ const TransactionModal = ({
         return;
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        setAlert({
+          isOpen: true,
+          title: "Security Error",
+          message: "Failed to get security token. Please refresh the page.",
+          type: "error",
+        });
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(`/api/goals/${goal.id}/transactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({
           type,
           amount: Number(amount),
@@ -173,12 +188,26 @@ const TransactionModal = ({
         return;
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        setAlert({
+          isOpen: true,
+          title: "Security Error",
+          message: "Failed to get security token. Please refresh the page.",
+          type: "error",
+        });
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(`/api/goals/${goal.id}/transactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({
           type: "deposit",
           amount: button.amount,

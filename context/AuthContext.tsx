@@ -11,6 +11,7 @@ import {
   getIdToken,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
+import { getCSRFToken } from "@/lib/api-client";
 
 interface CustomClaims {
   role: string;
@@ -62,6 +63,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           };
 
           setCustomClaims(customClaimsData);
+
+          // Fetch CSRF token for authenticated requests
+          try {
+            await fetch("/api/auth/csrf-token", {
+              method: "GET",
+              credentials: "include",
+            });
+          } catch (csrfError) {
+            console.warn("Failed to fetch CSRF token:", csrfError);
+            // Don't block the auth flow if CSRF token fetch fails
+          }
         } catch (error) {
           console.error("Error fetching custom claims:", error);
           setCustomClaims(null);
@@ -84,11 +96,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Set custom claims for the user
       try {
+        // Get CSRF token first
+        const csrfToken = await getCSRFToken();
+        if (!csrfToken) {
+          console.warn("Failed to get CSRF token for set-claims");
+          // Don't throw here as the user is already signed in
+          return;
+        }
+
+        // Get ID token for authentication
+        const idToken = await getIdToken(user);
+        if (!idToken) {
+          console.warn("Failed to get ID token for set-claims");
+          return;
+        }
+
         await fetch("/api/auth/set-claims", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+            "X-CSRF-Token": csrfToken,
           },
+          credentials: "include",
           body: JSON.stringify({ uid: user.uid }),
         });
       } catch (claimsError) {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { UserProfile } from "@/lib/types/friends";
+import { getCSRFToken } from "@/lib/api-client";
 import { UserPlus, MagnifyingGlass, Check, Clock } from "phosphor-react";
 
 const AddFriend = () => {
@@ -129,12 +130,20 @@ const AddFriend = () => {
         throw new Error("Authentication required");
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        alert("Failed to get security token. Please refresh the page.");
+        return;
+      }
+
       const response = await fetch("/api/friends/requests", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({
           action: "send",
           fromUserId: user.uid,
@@ -292,7 +301,7 @@ const AddFriend = () => {
                         </div>
                       ) : sendingRequests.has(userProfile.uid) ? (
                         <div className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 bg-amber-100 text-emerald-900 border border-emerald-900 rounded-full">
-                          <div className="animate-spin rounded-none h-3 w-3 sm:h-4 sm:w-4 border-2 border-emerald-900 border-t-transparent"></div>
+                          <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-2 border-emerald-900 border-t-transparent"></div>
                           <span className="text-xs sm:text-sm font-medium">
                             Sending...
                           </span>

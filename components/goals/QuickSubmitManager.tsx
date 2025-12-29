@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { QuickSubmitButton, Goal } from "@/lib/types/goals";
+import { getCSRFToken } from "@/lib/api-client";
 import { X, Plus, Trash } from "phosphor-react";
 import AlertModal from "./AlertModal";
 import ConfirmationModal from "./ConfirmationModal";
@@ -86,12 +87,26 @@ const QuickSubmitManager = ({ goal, onUpdate }: QuickSubmitManagerProps) => {
         return;
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        setAlert({
+          isOpen: true,
+          title: "Security Error",
+          message: "Failed to get security token. Please refresh the page.",
+          type: "error",
+        });
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(`/api/goals/${goal.id}/quick-submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({
           id: editingId || undefined,
           label,
@@ -150,13 +165,28 @@ const QuickSubmitManager = ({ goal, onUpdate }: QuickSubmitManagerProps) => {
         return;
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        setAlert({
+          isOpen: true,
+          title: "Security Error",
+          message: "Failed to get security token. Please refresh the page.",
+          type: "error",
+        });
+        setShowDeleteConfirm(false);
+        setButtonToDelete(null);
+        return;
+      }
+
       const response = await fetch(
         `/api/goals/${goal.id}/quick-submit?buttonId=${buttonToDelete}`,
         {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${idToken}`,
+            "X-CSRF-Token": csrfToken,
           },
+          credentials: "include",
         }
       );
 

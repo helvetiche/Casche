@@ -54,7 +54,7 @@ export const setCSRFTokenCookie = (
   token: string
 ): NextResponse => {
   response.cookies.set(CSRF_TOKEN_COOKIE, token, {
-    httpOnly: true,
+    httpOnly: false, // Must be readable by JavaScript to send in header
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",

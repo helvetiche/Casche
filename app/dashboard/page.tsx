@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { UserProfile } from "@/components/auth";
+import { getCSRFToken } from "@/lib/api-client";
 import BottomNavigation from "@/components/Navigation";
 import FriendsPage from "@/components/friends/FriendsPage";
 import GoalsPage from "@/components/goals/GoalsPage";
@@ -170,12 +171,20 @@ export default function Dashboard() {
         return;
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        alert("Failed to get security token. Please refresh the page.");
+        return;
+      }
+
       const response = await fetch(`/api/goals/${goalId}/transactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({
           type: "deposit",
           amount,
@@ -206,12 +215,20 @@ export default function Dashboard() {
         return;
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        alert("Failed to get security token. Please refresh the page.");
+        return;
+      }
+
       const response = await fetch(`/api/goals/${goalId}/transactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({
           type: "withdrawal",
           amount,
@@ -239,11 +256,19 @@ export default function Dashboard() {
       const idToken = await getCurrentUserIdToken();
       if (!idToken) return;
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        alert("Failed to get security token. Please refresh the page.");
+        return;
+      }
+
       const response = await fetch(`/api/goals?goalId=${goalId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
       });
 
       if (response.ok) {

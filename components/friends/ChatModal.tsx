@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { UserProfile } from "@/lib/types/friends";
 import { Message } from "@/lib/types/messages";
+import { getCSRFToken } from "@/lib/api-client";
 import { X, PaperPlaneTilt, UserCircle } from "phosphor-react";
 import ModalPortal from "../goals/ModalPortal";
 
@@ -96,12 +97,21 @@ const ChatModal = ({ isOpen, onClose, friend }: ChatModalProps) => {
       const idToken = await getCurrentUserIdToken();
       if (!idToken) return;
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        alert("Failed to get security token. Please refresh the page.");
+        setSending(false);
+        return;
+      }
+
       const response = await fetch("/api/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({
           receiverId: friend.uid,
           content: newMessage.trim(),

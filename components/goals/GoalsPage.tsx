@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Goal, GoalTransaction, GoalMember } from "@/lib/types/goals";
 import { UserProfile } from "@/lib/types/friends";
+import { getCSRFToken } from "@/lib/api-client";
 import {
   Target,
   Clock,
@@ -146,12 +147,25 @@ const GoalsPage = () => {
         return;
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        setAlert({
+          isOpen: true,
+          title: "Security Error",
+          message: "Failed to get security token. Please refresh the page.",
+          type: "error",
+        });
+        return;
+      }
+
       const response = await fetch(`/api/goals/${goalId}/transactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({
           type: "deposit",
           amount,
@@ -199,12 +213,25 @@ const GoalsPage = () => {
         return;
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        setAlert({
+          isOpen: true,
+          title: "Security Error",
+          message: "Failed to get security token. Please refresh the page.",
+          type: "error",
+        });
+        return;
+      }
+
       const response = await fetch(`/api/goals/${goalId}/transactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({
           type: "withdrawal",
           amount,
@@ -263,11 +290,24 @@ const GoalsPage = () => {
       const idToken = await getCurrentUserIdToken();
       if (!idToken) return;
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        setAlert({
+          isOpen: true,
+          title: "Security Error",
+          message: "Failed to get security token. Please refresh the page.",
+          type: "error",
+        });
+        return;
+      }
+
       const response = await fetch(`/api/goals?goalId=${goalId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
       });
 
       if (response.ok) {

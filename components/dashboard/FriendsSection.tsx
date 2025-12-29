@@ -6,6 +6,7 @@ import {
   FriendWithProfile,
   FriendRequestWithProfile,
 } from "@/lib/types/friends";
+import { getCSRFToken } from "@/lib/api-client";
 import {
   Users,
   UserPlus,
@@ -116,12 +117,20 @@ const FriendsSection = () => {
         throw new Error("Authentication required");
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        console.error("Failed to get CSRF token");
+        return;
+      }
+
       const response = await fetch("/api/friends/requests", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({
           action,
           fromUserId: user.uid,

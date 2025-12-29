@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { signOut } from "firebase/auth";
 import { withRateLimit } from "@/lib/rate-limiter";
 import { auditLog } from "@/lib/audit-logger";
-import { validateCSRFToken } from "@/lib/csrf-middleware";
+import { validateCSRFToken, generateCSRFToken, setCSRFTokenCookie, getCSRFToken } from "@/lib/csrf-middleware";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,9 +12,25 @@ export async function GET(request: NextRequest) {
     const rateLimitResponse = await withRateLimit(request);
     if (rateLimitResponse) return rateLimitResponse;
 
+    // Get or generate CSRF token
+    let token = getCSRFToken(request);
+    if (!token) {
+      token = generateCSRFToken();
+    }
+
     // This is a client-side operation, so we'll just return a success response
     // The actual session management is handled by Firebase Auth on the client
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ 
+      success: true,
+      csrfToken: token 
+    });
+    
+    // Set CSRF token in cookie if it was newly generated
+    if (!getCSRFToken(request)) {
+      return setCSRFTokenCookie(response, token);
+    }
+    
+    return response;
   } catch (error) {
     await auditLog.error.server(
       request,

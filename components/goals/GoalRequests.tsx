@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { GoalRequestWithDetails } from "@/lib/types/goals";
+import { getCSRFToken } from "@/lib/api-client";
 import {
   Check,
   X,
@@ -90,12 +91,25 @@ const GoalRequests = ({
         return;
       }
 
+      const csrfToken = await getCSRFToken();
+      if (!csrfToken) {
+        setAlertModal({
+          isOpen: true,
+          title: "Security Error",
+          message: "Failed to get security token. Please refresh the page.",
+          type: "error",
+        });
+        return;
+      }
+
       const response = await fetch("/api/goals/requests", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify({ requestId, action }),
       });
 

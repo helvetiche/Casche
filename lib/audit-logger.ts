@@ -54,10 +54,35 @@ export const logAuditEvent = async (entry: AuditLogEntry): Promise<void> => {
       return;
     }
 
-    await db.collection("auditLogs").add({
-      ...entry,
+    // Filter out undefined values to avoid Firestore errors
+    const firestoreData: Record<string, unknown> = {
+      type: entry.type,
+      action: entry.action,
+      success: entry.success,
       timestamp: admin.firestore.Timestamp.fromDate(entry.timestamp),
-    });
+    };
+
+    // Only include fields that are defined
+    if (entry.userId !== undefined) {
+      firestoreData.userId = entry.userId;
+    }
+    if (entry.ipAddress !== undefined) {
+      firestoreData.ipAddress = entry.ipAddress;
+    }
+    if (entry.userAgent !== undefined) {
+      firestoreData.userAgent = entry.userAgent;
+    }
+    if (entry.resourceId !== undefined) {
+      firestoreData.resourceId = entry.resourceId;
+    }
+    if (entry.details !== undefined) {
+      firestoreData.details = entry.details;
+    }
+    if (entry.error !== undefined) {
+      firestoreData.error = entry.error;
+    }
+
+    await db.collection("auditLogs").add(firestoreData);
   } catch (error) {
     // Don't throw errors from audit logging - it shouldn't break the app
     // In production, consider logging to external service
