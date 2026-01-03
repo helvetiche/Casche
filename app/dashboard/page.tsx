@@ -10,6 +10,7 @@ import WalletCard from "@/components/dashboard/WalletCard";
 import QuickGoalsTable from "@/components/dashboard/QuickGoalsTable";
 import Analytics from "@/components/dashboard/Analytics";
 import FriendsSection from "@/components/dashboard/FriendsSection";
+import StreakCalendar from "@/components/dashboard/StreakCalendar";
 import TransactionModal from "@/components/goals/TransactionModal";
 import GoalDetailsModal from "@/components/goals/GoalDetailsModal";
 import ConfirmationModal from "@/components/goals/ConfirmationModal";
@@ -70,6 +71,8 @@ export default function Dashboard() {
   >("deposit");
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [transactions, setTransactions] = useState<GoalTransaction[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
 
   // Fetch goals to calculate total savings
   const fetchGoals = useCallback(async () => {
@@ -106,12 +109,53 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
+  // Fetch transactions for streak calendar
+  const fetchTransactions = useCallback(async () => {
+    if (!user?.uid) return;
+
+    try {
+      setTransactionsLoading(true);
+      const idToken = await getCurrentUserIdToken();
+      if (!idToken) return;
+
+      const response = await fetch(
+        `/api/analytics/transactions?userId=${user.uid}`,
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const fetchedTransactions = data.transactions || [];
+        const processedTransactions = fetchedTransactions.map((tx: any) => ({
+          ...tx,
+          createdAt:
+            tx.createdAt instanceof Date
+              ? tx.createdAt
+              : tx.createdAt?.seconds
+              ? new Date(tx.createdAt.seconds * 1000)
+              : new Date(tx.createdAt),
+        }));
+        setTransactions(processedTransactions);
+      }
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+    } finally {
+      setTransactionsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
+
   // Fetch goals when user is available
   useEffect(() => {
     if (user?.uid && activeSection === "summary") {
       fetchGoals();
+      fetchTransactions();
     }
-  }, [user?.uid, activeSection, fetchGoals]);
+  }, [user?.uid, activeSection, fetchGoals, fetchTransactions]);
 
   // Handle deposit action
   const handleDeposit = (goalId: string) => {
@@ -419,6 +463,36 @@ export default function Dashboard() {
                   onView={handleViewGoal}
                 />
               )}
+            </div>
+
+            {/* Streak Calendar Section */}
+            <div className="mb-6 sm:mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                {transactionsLoading ? (
+                  <>
+                    <div className="bg-amber-100 border border-emerald-900 rounded-lg p-6">
+                      <div className="animate-pulse space-y-4">
+                        <div className="h-6 bg-gray-300 rounded w-1/3"></div>
+                        <div className="h-32 bg-gray-300 rounded"></div>
+                      </div>
+                    </div>
+                    <div className="bg-amber-100 border border-emerald-900 rounded-lg p-6">
+                      <div className="animate-pulse space-y-4">
+                        <div className="h-6 bg-gray-300 rounded w-1/3"></div>
+                        <div className="h-32 bg-gray-300 rounded"></div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <StreakCalendar transactions={transactions} type="deposit" />
+                    <StreakCalendar
+                      transactions={transactions}
+                      type="withdrawal"
+                    />
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Analytics Section */}

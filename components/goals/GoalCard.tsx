@@ -229,7 +229,7 @@ const GoalCard = ({
         </button>
         <button
           onClick={() => onWithdraw(goal.id)}
-          className="flex-1 flex items-center justify-center gap-1 px-2 sm:px-3 py-2 bg-white text-emerald-900 border border-emerald-900 rounded-full hover:bg-amber-50 transition-colors text-xs sm:text-sm font-medium"
+          className="flex-1 flex items-center justify-center gap-1 px-2 sm:px-3 py-2 bg-white text-red-900 border border-red-900 rounded-full hover:bg-red-50 transition-colors text-xs sm:text-sm font-medium"
           aria-label="Withdraw"
           tabIndex={0}
           onKeyDown={(e) => {

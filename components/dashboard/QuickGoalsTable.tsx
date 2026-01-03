@@ -178,7 +178,7 @@ const QuickGoalsTable = ({
                               onClick={() =>
                                 handleAction(goal.id, "withdraw", goal)
                               }
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-emerald-900 hover:text-amber-100 transition-colors flex items-center gap-2"
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-red-900 hover:text-white transition-colors flex items-center gap-2"
                               tabIndex={0}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {
